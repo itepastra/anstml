@@ -20,29 +20,34 @@ enum Color {
     Seven,
 }
 
+#[derive(Debug, PartialEq)]
 enum Intensity {
     Normal,
     Bold,
     Faint,
 }
 
+#[derive(Debug, PartialEq)]
 enum Blink {
     None,
     Fast,
     Slow,
 }
 
+#[derive(Debug, PartialEq)]
 enum Underline {
     None,
     Single,
     Double,
 }
 
+#[derive(Debug, PartialEq)]
 enum Spacing {
     Proportional,
     Monospace,
 }
 
+#[derive(Debug, PartialEq)]
 struct AnsiState {
     background_color: Color,
     text_color: Color,
@@ -138,7 +143,7 @@ impl AnsiState {
         if characters.next() != Some(b'[') {
             return Err(());
         }
-        match characters.next().unwrap_or(255) {
+        match parse_number(&mut characters.take_while(|&c| c >= 0x30 && c < 0x3a)).0? {
             0 => {
                 self.background_color = Color::None;
                 self.text_color = Color::None;
@@ -162,10 +167,7 @@ impl AnsiState {
             20 => todo!("Fraktur???"),
             21 => self.underline = Underline::Double,
             22 => self.intensity = Intensity::Normal,
-            23 => {
-                self.italic = false;
-                todo!("disable 'blackletter'")
-            }
+            23 => self.italic = false,
             24 => self.underline = Underline::None,
             25 => self.blink = Blink::None,
             26 => self.spacing = Spacing::Proportional,
@@ -255,5 +257,221 @@ mod tests {
     fn color_from_invalid_errors(#[case] str: &str) {
         let result = parse_color_code(&mut str.bytes().into_iter());
         assert_eq!(result, Err(()))
+    }
+
+    #[test]
+    fn parse_ansi_codes() {
+        let mut state = AnsiState::default();
+        assert_eq!(state.parse_ansi_code(&mut "[1m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Bold,
+                italic: false,
+                underline: Underline::None,
+                blink: Blink::None,
+                invert_colors: false,
+                strikethrough: false,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the bold code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[2m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Faint,
+                italic: false,
+                underline: Underline::None,
+                blink: Blink::None,
+                invert_colors: false,
+                strikethrough: false,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the faint code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[3m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Faint,
+                italic: true,
+                underline: Underline::None,
+                blink: Blink::None,
+                invert_colors: false,
+                strikethrough: false,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the italic code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[4m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Faint,
+                italic: true,
+                underline: Underline::Single,
+                blink: Blink::None,
+                invert_colors: false,
+                strikethrough: false,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the underline code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[5m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Faint,
+                italic: true,
+                underline: Underline::Single,
+                blink: Blink::Slow,
+                invert_colors: false,
+                strikethrough: false,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the slow blink code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[6m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Faint,
+                italic: true,
+                underline: Underline::Single,
+                blink: Blink::Fast,
+                invert_colors: false,
+                strikethrough: false,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the fast blink code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[7m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Faint,
+                italic: true,
+                underline: Underline::Single,
+                blink: Blink::Fast,
+                invert_colors: true,
+                strikethrough: false,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the invert code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[9m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Faint,
+                italic: true,
+                underline: Underline::Single,
+                blink: Blink::Fast,
+                invert_colors: true,
+                strikethrough: true,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the strikethrough code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[21m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Faint,
+                italic: true,
+                underline: Underline::Double,
+                blink: Blink::Fast,
+                invert_colors: true,
+                strikethrough: true,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the double underline code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[22m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Normal,
+                italic: true,
+                underline: Underline::Double,
+                blink: Blink::Fast,
+                invert_colors: true,
+                strikethrough: true,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the reset intensity code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[23m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Normal,
+                italic: false,
+                underline: Underline::Double,
+                blink: Blink::Fast,
+                invert_colors: true,
+                strikethrough: true,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the reset italic code"
+        );
+        assert_eq!(state.parse_ansi_code(&mut "[24m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState {
+                background_color: Color::None,
+                text_color: Color::None,
+                underline_color: Color::None,
+                intensity: Intensity::Normal,
+                italic: false,
+                underline: Underline::None,
+                blink: Blink::Fast,
+                invert_colors: true,
+                strikethrough: true,
+                spacing: Spacing::Proportional
+            },
+            "We are testing the reset underline code"
+        );
+        println!("testing code 0");
+        assert_eq!(state.parse_ansi_code(&mut "[0m".bytes()), Ok(()));
+        assert_eq!(
+            state,
+            AnsiState::default(),
+            "We are testing the reset all code"
+        );
     }
 }
