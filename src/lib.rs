@@ -82,10 +82,11 @@ fn parse_color_code(part: &mut impl Iterator<Item = u8>) -> Result<Color, ()> {
     if part.next() != Some(b';') {
         return Err(());
     }
-    if selector == Some(b'5') {
-        let (n, length) =
-            part.take_while(|&p| p != b'm')
-                .fold((Ok(0), 0), |(total, length), char| match total {
+    match selector {
+        Some(b'5') => {
+            let (n, length) = part.take_while(|&p| p != b'm').fold(
+                (Ok(0), 0),
+                |(total, length), char| match total {
                     Ok(total) => {
                         // I don't want it to panic on overflows, or accept illegal inputs....
                         if (char >= 0x30 && char < 0x3a)
@@ -97,53 +98,55 @@ fn parse_color_code(part: &mut impl Iterator<Item = u8>) -> Result<Color, ()> {
                         }
                     }
                     Err(()) => (Err(()), length + 1),
-                });
-        if length > 3 {
-            return Err(());
-        };
-        match n {
-            Ok(0) => Ok(Color::Zero),
-            Err(()) => Err(()),
-            _ => todo!("waa"),
+                },
+            );
+            if length > 3 {
+                return Err(());
+            };
+            match n {
+                Ok(0) => Ok(Color::Zero),
+                Err(()) => Err(()),
+                _ => todo!("waa"),
+            }
         }
-    } else if selector == Some(b'2') {
-        let color: Vec<u8> = part.take_while(|&p| p != b'm').take(11).collect();
+        Some(b'2') => {
+            let color: Vec<u8> = part.take_while(|&p| p != b'm').take(11).collect();
 
-        let splits: Vec<_> = color.split(|&byte| byte == b';').collect();
-        if splits.len() != 3 {
-            return Err(());
-        }
+            let splits: Vec<_> = color.split(|&byte| byte == b';').collect();
+            if splits.len() != 3 {
+                return Err(());
+            }
 
-        let cparts: Vec<Result<u8, ()>> = splits
-            .into_iter()
-            .map(|split| {
-                let (total, length) =
-                    split
-                        .iter()
-                        .fold((Ok(0), 0), |(total, length), &char| match total {
-                            Ok(total) => {
-                                // I don't want it to panic on overflows, or accept illegal inputs....
-                                if (char >= 0x30 && char < 0x3a)
-                                    && (total < 25 || (total == 25 && char <= 0x35))
-                                {
-                                    (Ok(total * 10 + (char - 0x30)), length + 1)
-                                } else {
-                                    (Err(()), length + 1)
+            let cparts: Vec<Result<u8, ()>> = splits
+                .into_iter()
+                .map(|split| {
+                    let (total, length) =
+                        split
+                            .iter()
+                            .fold((Ok(0), 0), |(total, length), &char| match total {
+                                Ok(total) => {
+                                    // I don't want it to panic on overflows, or accept illegal inputs....
+                                    if (char >= 0x30 && char < 0x3a)
+                                        && (total < 25 || (total == 25 && char <= 0x35))
+                                    {
+                                        (Ok(total * 10 + (char - 0x30)), length + 1)
+                                    } else {
+                                        (Err(()), length + 1)
+                                    }
                                 }
-                            }
-                            Err(()) => (Err(()), length + 1),
-                        });
-                if length > 3 {
-                    return Err(());
-                }
-                total
-            })
-            .collect();
-        println!("cparts = {:?}", cparts);
+                                Err(()) => (Err(()), length + 1),
+                            });
+                    if length > 3 {
+                        return Err(());
+                    }
+                    total
+                })
+                .collect();
+            println!("cparts = {:?}", cparts);
 
-        Ok(Color::Full(cparts[0]?, cparts[1]?, cparts[2]?))
-    } else {
-        Err(())
+            Ok(Color::Full(cparts[0]?, cparts[1]?, cparts[2]?))
+        }
+        _ => Err(()),
     }
 }
 
