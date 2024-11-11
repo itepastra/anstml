@@ -73,6 +73,19 @@ impl Default for AnsiState {
     }
 }
 
+fn parse_number(part: &mut impl Iterator<Item = u8>) -> (Result<u8, ()>, u32) {
+    part.fold((Ok(0), 0), |(total, length), char| match total {
+        Ok(total) => {
+            if (char >= 0x30 && char < 0x3a) && (total < 25 || (total == 25 && char <= 0x35)) {
+                (Ok(total * 10 + (char - 0x30)), length + 1)
+            } else {
+                (Err(()), length + 1)
+            }
+        }
+        Err(()) => (Err(()), length + 1),
+    })
+}
+
 fn parse_color_code(part: &mut impl Iterator<Item = u8>) -> Result<Color, ()> {
     // match `;(2|5);`
     if part.next() != Some(b';') {
@@ -84,22 +97,7 @@ fn parse_color_code(part: &mut impl Iterator<Item = u8>) -> Result<Color, ()> {
     }
     match selector {
         Some(b'5') => {
-            let (n, length) = part.take_while(|&p| p != b'm').fold(
-                (Ok(0), 0),
-                |(total, length), char| match total {
-                    Ok(total) => {
-                        // I don't want it to panic on overflows, or accept illegal inputs....
-                        if (char >= 0x30 && char < 0x3a)
-                            && (total < 25 || (total == 25 && char <= 0x35))
-                        {
-                            (Ok(total * 10 + (char - 0x30)), length + 1)
-                        } else {
-                            (Err(()), length + 1)
-                        }
-                    }
-                    Err(()) => (Err(()), length + 1),
-                },
-            );
+            let (n, length) = parse_number(&mut part.take_while(|&p| p != b'm'));
             if length > 3 {
                 return Err(());
             };
@@ -120,22 +118,7 @@ fn parse_color_code(part: &mut impl Iterator<Item = u8>) -> Result<Color, ()> {
             let cparts: Vec<Result<u8, ()>> = splits
                 .into_iter()
                 .map(|split| {
-                    let (total, length) =
-                        split
-                            .iter()
-                            .fold((Ok(0), 0), |(total, length), &char| match total {
-                                Ok(total) => {
-                                    // I don't want it to panic on overflows, or accept illegal inputs....
-                                    if (char >= 0x30 && char < 0x3a)
-                                        && (total < 25 || (total == 25 && char <= 0x35))
-                                    {
-                                        (Ok(total * 10 + (char - 0x30)), length + 1)
-                                    } else {
-                                        (Err(()), length + 1)
-                                    }
-                                }
-                                Err(()) => (Err(()), length + 1),
-                            });
+                    let (total, length) = parse_number(&mut split.iter().map(|&p| p));
                     if length > 3 {
                         return Err(());
                     }
