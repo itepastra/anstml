@@ -73,55 +73,86 @@ impl Default for AnsiState {
     }
 }
 
-fn mk_byte_from_bytes(bytes: Vec<u8>) -> u8 {
-    bytes.iter().fold(0, |b, c| b + (c - 0x30))
-}
-
-fn parse_color_code(part: &[u8]) -> Result<Color, ()> {
-    if part.starts_with(b";5;") {
-        let n = part
-            .iter()
-            .skip(3)
-            .take_while(|&p| *p != b'm')
-            .take(3)
-            .fold(0, |total, char| total * 10 + (char - 0x30));
+fn parse_color_code(part: &mut impl Iterator<Item = u8>) -> Result<Color, ()> {
+    // match `;(2|5);`
+    if part.next() != Some(b';') {
+        return Err(());
+    }
+    let selector = part.next();
+    if part.next() != Some(b';') {
+        return Err(());
+    }
+    if selector == Some(b'5') {
+        let (n, length) =
+            part.take_while(|&p| p != b'm')
+                .fold((Ok(0), 0), |(total, length), char| match total {
+                    Ok(total) => {
+                        // I don't want it to panic on overflows, or accept illegal inputs....
+                        if (char >= 0x30 && char < 0x3a)
+                            && (total < 25 || (total == 25 && char <= 0x35))
+                        {
+                            (Ok(total * 10 + (char - 0x30)), length + 1)
+                        } else {
+                            (Err(()), length + 1)
+                        }
+                    }
+                    Err(()) => (Err(()), length + 1),
+                });
+        if length > 3 {
+            return Err(());
+        };
         match n {
-            0 => Ok(Color::Zero),
+            Ok(0) => Ok(Color::Zero),
+            Err(()) => Err(()),
             _ => todo!("waa"),
         }
-    } else if part.starts_with(b";2;") {
-        println!("starts with `;2;`");
-        let color: Vec<u8> = part
-            .iter()
-            .skip(3)
-            .map(|&p| p)
-            .take_while(|&p| p != b'm')
-            .collect();
-        println!("color = {:?}", color);
+    } else if selector == Some(b'2') {
+        let color: Vec<u8> = part.take_while(|&p| p != b'm').take(11).collect();
 
         let splits: Vec<_> = color.split(|&byte| byte == b';').collect();
-        println!("splits = {:?}", splits);
+        if splits.len() != 3 {
+            return Err(());
+        }
 
-        let cparts: Vec<u8> = splits
+        let cparts: Vec<Result<u8, ()>> = splits
             .into_iter()
             .map(|split| {
-                split
-                    .iter()
-                    .fold(0, |total, char| total * 10 + (char - 0x30))
+                let (total, length) =
+                    split
+                        .iter()
+                        .fold((Ok(0), 0), |(total, length), &char| match total {
+                            Ok(total) => {
+                                // I don't want it to panic on overflows, or accept illegal inputs....
+                                if (char >= 0x30 && char < 0x3a)
+                                    && (total < 25 || (total == 25 && char <= 0x35))
+                                {
+                                    (Ok(total * 10 + (char - 0x30)), length + 1)
+                                } else {
+                                    (Err(()), length + 1)
+                                }
+                            }
+                            Err(()) => (Err(()), length + 1),
+                        });
+                if length > 3 {
+                    return Err(());
+                }
+                total
             })
             .collect();
         println!("cparts = {:?}", cparts);
 
-        Ok(Color::Full(cparts[0], cparts[1], cparts[2]))
+        Ok(Color::Full(cparts[0]?, cparts[1]?, cparts[2]?))
     } else {
         Err(())
     }
 }
 
 impl AnsiState {
-    fn parse_ansi_code(&mut self, next_part: &str) -> Result<(), ()> {
-        let bytes = next_part.as_bytes();
-        match bytes[0] {
+    fn parse_ansi_code(&mut self, characters: &mut impl Iterator<Item = u8>) -> Result<(), ()> {
+        if characters.next() != Some(b'[') {
+            return Err(());
+        }
+        match characters.next().unwrap_or(255) {
             0 => {
                 self.background_color = Color::None;
                 self.text_color = Color::None;
@@ -221,8 +252,22 @@ mod tests {
     #[case(29, 99, 91)]
     // weird notation
     #[case(003, 022, 000)]
-    fn test_color_from_escape(#[case] r: u8, #[case] g: u8, #[case] b: u8) {
-        let result = parse_color_code(format!(";2;{r};{g};{b}m").as_bytes());
+    fn full_color_from_extra_escape_part(#[case] r: u8, #[case] g: u8, #[case] b: u8) {
+        let result = parse_color_code(&mut format!(";2;{r};{g};{b}m").bytes().into_iter());
         assert_eq!(result, Ok(Color::Full(r, g, b)));
+    }
+
+    #[rstest]
+    #[case(";3;0;0;0m")]
+    #[case(";2;256;0;0m")]
+    #[case(";2;000;0000;128m")]
+    #[case(";2;0255;0128;0001m")]
+    #[case(";2;1;128;1;100m")]
+    #[case(";2;011;300m")]
+    #[case(";5;0112m")]
+    #[case(";5;1;1m")]
+    fn color_from_invalid_errors(#[case] str: &str) {
+        let result = parse_color_code(&mut str.bytes().into_iter());
+        assert_eq!(result, Err(()))
     }
 }
