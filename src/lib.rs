@@ -2,7 +2,12 @@
 #![recursion_limit = "512"]
 
 use error::AnsiError;
-use html::{content::Article, inline_text::Span, text_content::Division, HtmlElement};
+use html::{
+    content::Article,
+    inline_text::Span,
+    text_content::{Division, PreformattedText},
+    HtmlElement,
+};
 use itertools::Itertools;
 use state::AnsiState;
 
@@ -70,8 +75,8 @@ impl Parser {
 pub(crate) struct Formatter {}
 
 impl Formatter {
-    pub(crate) fn format_chain(chain: AnsiChain) -> Division {
-        let mut art = Division::builder();
+    pub(crate) fn format_chain(chain: AnsiChain) -> PreformattedText {
+        let mut art = PreformattedText::builder();
         for (state, text) in chain {
             if state != AnsiState::default() {
                 let mut span = Span::builder();
@@ -88,7 +93,7 @@ impl Formatter {
 
 pub fn convert<T: Iterator<Item = char> + Clone>(
     characters: &mut T,
-) -> Result<Division, AnsiError> {
+) -> Result<PreformattedText, AnsiError> {
     let mut parser = Parser::default();
     parser.parse_ansi_text(characters)?;
     Ok(Formatter::format_chain(parser.ansi_chain))
@@ -124,7 +129,7 @@ mod tests {
                     StrikeThrough::No,
                     Intensity::Normal,
                     Blink::None,
-                    Spacing::Proportional,
+                    Spacing::Monospace,
                 ),
                 "piece of text with escape codes like and ".to_string(),
             ),
@@ -139,7 +144,7 @@ mod tests {
                     StrikeThrough::No,
                     Intensity::Normal,
                     Blink::Slow,
-                    Spacing::Proportional,
+                    Spacing::Monospace,
                 ),
                 " , it should parse without errors etc.".to_string(),
             ),
@@ -158,7 +163,7 @@ mod tests {
                     StrikeThrough::No,
                     Intensity::Normal,
                     Blink::None,
-                    Spacing::Proportional,
+                    Spacing::Monospace,
                 ),
                 " and this is some blue'ish".to_string(),
             ),
@@ -184,13 +189,13 @@ mod tests {
                     StrikeThrough::No,
                     Intensity::Bold,
                     Blink::None,
-                    Spacing::Proportional,
+                    Spacing::Monospace,
                 ),
                 "and this text is bold".to_string(),
             ),
         ];
         let correct =
-            "<article>This is default text<span style=\"font-weight:bold;\">and this text is bold</span></article>";
+            "<pre>This is default text<span style=\"font-weight:bold;\">and this text is bold</span></pre>";
         assert_eq!(Formatter::format_chain(chain).to_string(), correct);
     }
 

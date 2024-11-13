@@ -87,7 +87,7 @@ impl Default for AnsiState {
             strikethrough: StrikeThrough::No,
             intensity: Intensity::Normal,
             blink: Blink::None,
-            spacing: Spacing::Proportional,
+            spacing: Spacing::Monospace,
         }
     }
 }
@@ -129,8 +129,8 @@ impl AnsiState {
             };
             s.push_str(&format!("animation: blink {} step-start infinite;", speed))
         }
-        if self.spacing != Spacing::Proportional {
-            s.push_str("font-family: monospace;")
+        if self.spacing != Spacing::Monospace {
+            s.push_str("font-family: system-ui;")
         }
         s
     }
@@ -270,7 +270,7 @@ mod tests {
                 StrikeThrough::No,
                 Intensity::Bold,
                 Blink::None,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the bold code"
         );
@@ -287,7 +287,7 @@ mod tests {
                 StrikeThrough::No,
                 Intensity::Faint,
                 Blink::None,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the faint code"
         );
@@ -304,7 +304,7 @@ mod tests {
                 StrikeThrough::No,
                 Intensity::Faint,
                 Blink::None,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the italic code"
         );
@@ -321,7 +321,7 @@ mod tests {
                 StrikeThrough::No,
                 Intensity::Faint,
                 Blink::None,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the underline code"
         );
@@ -338,7 +338,7 @@ mod tests {
                 StrikeThrough::No,
                 Intensity::Faint,
                 Blink::Slow,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the slow blink code"
         );
@@ -355,7 +355,7 @@ mod tests {
                 StrikeThrough::No,
                 Intensity::Faint,
                 Blink::Fast,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the fast blink code"
         );
@@ -372,7 +372,7 @@ mod tests {
                 StrikeThrough::No,
                 Intensity::Faint,
                 Blink::Fast,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the invert code"
         );
@@ -389,7 +389,7 @@ mod tests {
                 StrikeThrough::Yes,
                 Intensity::Faint,
                 Blink::Fast,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the strikethrough code"
         );
@@ -406,7 +406,7 @@ mod tests {
                 StrikeThrough::Yes,
                 Intensity::Faint,
                 Blink::Fast,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the double underline code"
         );
@@ -423,7 +423,7 @@ mod tests {
                 StrikeThrough::Yes,
                 Intensity::Normal,
                 Blink::Fast,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the reset intensity code"
         );
@@ -440,7 +440,7 @@ mod tests {
                 StrikeThrough::Yes,
                 Intensity::Normal,
                 Blink::Fast,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the reset italic code"
         );
@@ -457,7 +457,7 @@ mod tests {
                 StrikeThrough::Yes,
                 Intensity::Normal,
                 Blink::Fast,
-                Spacing::Proportional
+                Spacing::Monospace
             ),
             "We are testing the reset underline code"
         );
