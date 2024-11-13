@@ -85,7 +85,7 @@
       );
       hydraJobs = {
         devShell.x86_64-linux = self.devShells.x86_64-linux.default;
-        anstml.x86_64-linux = self.packages.x86_64-linux.flurry;
+        anstml.x86_64-linux = self.packages.x86_64-linux.anstml;
       };
     };
 }
