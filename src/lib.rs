@@ -1,14 +1,16 @@
+use html::{content::Article, inline_text::Span, HtmlElement};
 use itertools::Itertools;
-
 use state::AnsiState;
 
 mod state;
 mod sub_parsers;
 
 pub struct Parser {
-    ansi_chain: Vec<(AnsiState, String)>,
+    ansi_chain: AnsiChain,
     current: AnsiState,
 }
+
+pub type AnsiChain = Vec<(AnsiState, String)>;
 
 impl Default for Parser {
     fn default() -> Self {
@@ -56,6 +58,25 @@ impl Parser {
             })
             .collect();
         Ok(())
+    }
+}
+
+pub struct Formatter {}
+
+impl Formatter {
+    pub fn new() -> Self {
+        Formatter {}
+    }
+    pub fn format_chain(chain: AnsiChain) -> impl HtmlElement {
+        let mut art = Article::builder();
+        for (state, text) in chain {
+            let mut span = Span::builder();
+            span.text(text);
+            span.style(state.to_style());
+
+            art.push(span.build());
+        }
+        art.build()
     }
 }
 

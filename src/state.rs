@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::sub_parsers::{parse_color_code, parse_number};
 use itertools::Itertools;
 
@@ -62,7 +64,7 @@ pub(crate) enum Italics {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct AnsiState {
+pub struct AnsiState {
     background_color: Color,
     text_color: Color,
     underline_color: Color,
@@ -93,6 +95,12 @@ impl Default for AnsiState {
 }
 
 impl AnsiState {
+    pub(crate) fn to_style(&self) -> String {
+        let mut s = String::new();
+
+        s
+    }
+
     pub(crate) fn new(
         background_color: Color,
         text_color: Color,
