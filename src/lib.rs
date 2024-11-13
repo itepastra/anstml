@@ -2,12 +2,12 @@
 #![recursion_limit = "512"]
 
 use error::AnsiError;
-use html::{content::Article, inline_text::Span, HtmlElement};
+use html::{content::Article, inline_text::Span, text_content::Division, HtmlElement};
 use itertools::Itertools;
 use state::AnsiState;
 
 mod color;
-mod error;
+pub mod error;
 mod state;
 mod sub_parsers;
 
@@ -42,9 +42,7 @@ impl Parser {
 
             // parse the escape code
             match self.current.parse_ansi_code(characters) {
-                Ok(()) => {
-                    println!("current post parse = {:?}", self.current);
-                }
+                Ok(()) => {}
                 Err(ansi_error) => {
                     if characters.next().is_some() {
                         return Err(ansi_error);
@@ -72,8 +70,8 @@ impl Parser {
 pub(crate) struct Formatter {}
 
 impl Formatter {
-    pub(crate) fn format_chain(chain: AnsiChain) -> Article {
-        let mut art = Article::builder();
+    pub(crate) fn format_chain(chain: AnsiChain) -> Division {
+        let mut art = Division::builder();
         for (state, text) in chain {
             if state != AnsiState::default() {
                 let mut span = Span::builder();
@@ -90,7 +88,7 @@ impl Formatter {
 
 pub fn convert<T: Iterator<Item = char> + Clone>(
     characters: &mut T,
-) -> Result<impl HtmlElement, AnsiError> {
+) -> Result<Division, AnsiError> {
     let mut parser = Parser::default();
     parser.parse_ansi_text(characters)?;
     Ok(Formatter::format_chain(parser.ansi_chain))

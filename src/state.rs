@@ -5,7 +5,6 @@ use crate::{
     error::AnsiError,
     sub_parsers::{parse_color_code, parse_number},
 };
-use itertools::Itertools;
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) enum Intensity {
