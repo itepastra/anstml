@@ -1,3 +1,6 @@
+// needed for the html crate
+#![recursion_limit = "512"]
+
 use html::{content::Article, inline_text::Span, HtmlElement};
 use itertools::Itertools;
 use state::AnsiState;
