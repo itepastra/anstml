@@ -71,11 +71,14 @@ impl Formatter {
     pub(crate) fn format_chain(chain: AnsiChain) -> Article {
         let mut art = Article::builder();
         for (state, text) in chain {
-            let mut span = Span::builder();
-            span.text(text);
-            span.style(state.to_style());
-
-            art.push(span.build());
+            if state != AnsiState::default() {
+                let mut span = Span::builder();
+                span.text(text);
+                span.style(state.to_style());
+                art.push(span.build());
+            } else {
+                art.text(text);
+            }
         }
         art.build()
     }
@@ -163,5 +166,30 @@ mod tests {
         for (correct, actual) in zip(parser.ansi_chain, correct) {
             assert_eq!(actual, correct)
         }
+    }
+
+    #[test]
+    fn make_html_from_chain() {
+        let chain = vec![
+            (AnsiState::default(), "This is default text".to_string()),
+            (
+                AnsiState::new(
+                    Color::None,
+                    Color::None,
+                    Color::None,
+                    InvertColors::No,
+                    Italics::No,
+                    Underline::None,
+                    StrikeThrough::No,
+                    Intensity::Bold,
+                    Blink::None,
+                    Spacing::Proportional,
+                ),
+                "and this text is bold".to_string(),
+            ),
+        ];
+        let correct =
+            "<article>This is default text<span style=\"font-weight:bold;\">and this text is bold</span></article>";
+        assert_eq!(Formatter::format_chain(chain).to_string(), correct);
     }
 }
