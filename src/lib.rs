@@ -2,12 +2,7 @@
 #![recursion_limit = "512"]
 
 use error::AnsiError;
-use html::{
-    content::Article,
-    inline_text::Span,
-    text_content::{Division, PreformattedText},
-    HtmlElement,
-};
+use html::{inline_text::Span, text_content::PreformattedText};
 use itertools::Itertools;
 use state::AnsiState;
 
@@ -197,11 +192,5 @@ mod tests {
         let correct =
             "<pre>This is default text<span style=\"font-weight:bold;\">and this text is bold</span></pre>";
         assert_eq!(Formatter::format_chain(chain).to_string(), correct);
-    }
-
-    #[test]
-    fn convert_ansi_to_html() {
-        let ansi = "I'll start with some normal text, \x1b[32and then some green \x1b[1that's also bold\x1b[2and some that's faint\x1b[0";
-        let correct_html = r#""#;
     }
 }

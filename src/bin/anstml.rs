@@ -5,19 +5,19 @@ use anstml::{convert, error::AnsiError};
 
 #[derive(Debug)]
 enum AnsTmlError {
-    AnsiError(AnsiError),
-    IOError(Error),
+    AnsiError,
+    IOError,
 }
 
 impl From<std::io::Error> for AnsTmlError {
-    fn from(value: Error) -> Self {
-        Self::IOError(value)
+    fn from(_value: Error) -> Self {
+        Self::IOError
     }
 }
 
 impl From<AnsiError> for AnsTmlError {
-    fn from(value: AnsiError) -> Self {
-        Self::AnsiError(value)
+    fn from(_value: AnsiError) -> Self {
+        Self::AnsiError
     }
 }
 
