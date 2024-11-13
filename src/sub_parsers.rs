@@ -29,14 +29,14 @@ pub(crate) fn parse_color_code(part: &mut impl Iterator<Item = char>) -> Result<
                 return Err(());
             };
             match n {
-                Ok(0) => Ok(Color::Zero),
-                Ok(1) => Ok(Color::One),
-                Ok(2) => Ok(Color::Two),
-                Ok(3) => Ok(Color::Three),
-                Ok(4) => Ok(Color::Four),
-                Ok(5) => Ok(Color::Five),
-                Ok(6) => Ok(Color::Six),
-                Ok(7) => Ok(Color::Seven),
+                Ok(0) => Ok(Color::Black),
+                Ok(1) => Ok(Color::Red),
+                Ok(2) => Ok(Color::Green),
+                Ok(3) => Ok(Color::Yellow),
+                Ok(4) => Ok(Color::Blue),
+                Ok(5) => Ok(Color::Magenta),
+                Ok(6) => Ok(Color::Cyan),
+                Ok(7) => Ok(Color::White),
                 Ok(n) => Ok(Color::Byte(n)),
                 Err(()) => Err(()),
             }

@@ -109,7 +109,7 @@ mod tests {
             (
                 AnsiState::new(
                     Color::None,
-                    Color::Two,
+                    Color::Green,
                     Color::None,
                     InvertColors::No,
                     Italics::No,
@@ -124,7 +124,7 @@ mod tests {
             (
                 AnsiState::new(
                     Color::None,
-                    Color::Three,
+                    Color::Yellow,
                     Color::None,
                     InvertColors::No,
                     Italics::No,

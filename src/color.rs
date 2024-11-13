@@ -7,14 +7,14 @@ pub(crate) enum Color {
     None,
     Byte(u8),
     Full(u8, u8, u8),
-    Zero,
-    One,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
+    Black,
+    Red,
+    Green,
+    Yellow,
+    Blue,
+    Magenta,
+    Cyan,
+    White,
 }
 
 impl Display for Color {
@@ -26,14 +26,14 @@ impl Display for Color {
                 write!(f, "#{:02X}{:02X}{:02X}", r, g, b)
             }
             Color::Full(r, g, b) => write!(f, "#{:02X}{:02X}{:02X}", r, g, b),
-            Color::Zero => f.write_str("black"),
-            Color::One => f.write_str("red"),
-            Color::Two => f.write_str("green"),
-            Color::Three => f.write_str("yellow"),
-            Color::Four => f.write_str("blue"),
-            Color::Five => f.write_str("magenta"),
-            Color::Six => f.write_str("cyan"),
-            Color::Seven => f.write_str("white"),
+            Color::Black => f.write_str("black"),
+            Color::Red => f.write_str("red"),
+            Color::Green => f.write_str("green"),
+            Color::Yellow => f.write_str("yellow"),
+            Color::Blue => f.write_str("blue"),
+            Color::Magenta => f.write_str("magenta"),
+            Color::Cyan => f.write_str("cyan"),
+            Color::White => f.write_str("white"),
         }
     }
 }
