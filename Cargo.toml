@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ansi_colours = "1.2.3"
 html = "0.6.3"
 itertools = "0.13.0"
 

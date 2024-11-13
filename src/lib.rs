@@ -2,6 +2,7 @@ use html::{content::Article, inline_text::Span, HtmlElement};
 use itertools::Itertools;
 use state::AnsiState;
 
+mod color;
 mod state;
 mod sub_parsers;
 
@@ -61,13 +62,10 @@ impl Parser {
     }
 }
 
-pub struct Formatter {}
+pub(crate) struct Formatter {}
 
 impl Formatter {
-    pub fn new() -> Self {
-        Formatter {}
-    }
-    pub fn format_chain(chain: AnsiChain) -> impl HtmlElement {
+    pub(crate) fn format_chain(chain: AnsiChain) -> Article {
         let mut art = Article::builder();
         for (state, text) in chain {
             let mut span = Span::builder();
@@ -80,12 +78,20 @@ impl Formatter {
     }
 }
 
+pub fn convert<T: Iterator<Item = char> + Clone>(
+    characters: &mut T,
+) -> Result<impl HtmlElement, ()> {
+    let mut parser = Parser::default();
+    parser.parse_ansi_text(characters)?;
+
+    Ok(Formatter::format_chain(parser.ansi_chain))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use state::{
-        Blink, Color, Intensity, InvertColors, Italics, Spacing, StrikeThrough, Underline,
-    };
+    use color::Color;
+    use state::{Blink, Intensity, InvertColors, Italics, Spacing, StrikeThrough, Underline};
     use std::iter::zip;
 
     #[test]

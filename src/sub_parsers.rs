@@ -1,4 +1,4 @@
-use crate::state::Color;
+use crate::color::Color;
 
 pub(crate) fn parse_number(part: &mut impl Iterator<Item = u8>) -> (Result<u8, ()>, u32) {
     part.fold((Ok(0), 0), |(total, length), char| match total {
@@ -30,8 +30,15 @@ pub(crate) fn parse_color_code(part: &mut impl Iterator<Item = char>) -> Result<
             };
             match n {
                 Ok(0) => Ok(Color::Zero),
+                Ok(1) => Ok(Color::One),
+                Ok(2) => Ok(Color::Two),
+                Ok(3) => Ok(Color::Three),
+                Ok(4) => Ok(Color::Four),
+                Ok(5) => Ok(Color::Five),
+                Ok(6) => Ok(Color::Six),
+                Ok(7) => Ok(Color::Seven),
+                Ok(n) => Ok(Color::Byte(n)),
                 Err(()) => Err(()),
-                _ => todo!("waa"),
             }
         }
         Some('2') => {

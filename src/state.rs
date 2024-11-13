@@ -1,28 +1,26 @@
-use std::borrow::Cow;
+use std::fmt::Display;
 
-use crate::sub_parsers::{parse_color_code, parse_number};
+use crate::{
+    color::Color,
+    sub_parsers::{parse_color_code, parse_number},
+};
 use itertools::Itertools;
-
-#[derive(Debug, PartialEq, Clone)]
-pub(crate) enum Color {
-    None,
-    Byte(u8),
-    Full(u8, u8, u8),
-    Zero,
-    One,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) enum Intensity {
     Normal,
     Bold,
     Faint,
+}
+
+impl Display for Intensity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Intensity::Normal => f.write_str(""),
+            Intensity::Bold => f.write_str("bold"),
+            Intensity::Faint => f.write_str("light"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -97,10 +95,47 @@ impl Default for AnsiState {
 impl AnsiState {
     pub(crate) fn to_style(&self) -> String {
         let mut s = String::new();
-
+        if self.background_color != Color::None {
+            s.push_str(&format!("background-color:{};", self.background_color));
+        }
+        if self.text_color != Color::None {
+            s.push_str(&format!("color:{};", self.text_color));
+        }
+        if self.underline != Underline::None || self.strikethrough != StrikeThrough::No {
+            if self.underline_color != Color::None {
+                s.push_str(&format!("text-decoration-color:{};", self.underline_color))
+            }
+            let mut lines = Vec::new();
+            if self.underline != Underline::None {
+                lines.push("underline");
+            }
+            if self.strikethrough != StrikeThrough::No {
+                lines.push("line-through");
+            }
+            s.push_str(&format!("text-decoration:{};", lines.join(" ")));
+        }
+        if self.underline == Underline::Double {
+            s.push_str("text-decoration-style: double;")
+        }
+        if self.intensity != Intensity::Normal {
+            s.push_str(&format!("font-weight:{};", self.intensity))
+        }
+        // NOTE: needs the blink animation to be defined in css
+        if self.blink != Blink::None {
+            let speed = match self.blink {
+                Blink::None => unreachable!(),
+                Blink::Fast => 0.5,
+                Blink::Slow => 1.0,
+            };
+            s.push_str(&format!("animation: blink {} step-start infinite;", speed))
+        }
+        if self.spacing != Spacing::Proportional {
+            s.push_str("font-family: monospace;")
+        }
         s
     }
 
+    #[allow(unused)]
     pub(crate) fn new(
         background_color: Color,
         text_color: Color,
