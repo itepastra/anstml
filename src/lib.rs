@@ -1,11 +1,13 @@
 // needed for the html crate
 #![recursion_limit = "512"]
 
+use error::AnsiError;
 use html::{content::Article, inline_text::Span, HtmlElement};
 use itertools::Itertools;
 use state::AnsiState;
 
 mod color;
+mod error;
 mod state;
 mod sub_parsers;
 
@@ -29,7 +31,7 @@ impl Parser {
     pub fn parse_ansi_text<T: Iterator<Item = char> + Clone>(
         &mut self,
         characters: &mut T,
-    ) -> Result<(), ()> {
+    ) -> Result<(), AnsiError> {
         let mut chain = Vec::new();
         loop {
             // get the text till the next escape code
@@ -40,10 +42,12 @@ impl Parser {
 
             // parse the escape code
             match self.current.parse_ansi_code(characters) {
-                Ok(()) => {}
-                Err(()) => {
+                Ok(()) => {
+                    println!("current post parse = {:?}", self.current);
+                }
+                Err(ansi_error) => {
                     if characters.next().is_some() {
-                        return Err(());
+                        return Err(ansi_error);
                     } else {
                         break;
                     }
@@ -86,10 +90,9 @@ impl Formatter {
 
 pub fn convert<T: Iterator<Item = char> + Clone>(
     characters: &mut T,
-) -> Result<impl HtmlElement, ()> {
+) -> Result<impl HtmlElement, AnsiError> {
     let mut parser = Parser::default();
     parser.parse_ansi_text(characters)?;
-
     Ok(Formatter::format_chain(parser.ansi_chain))
 }
 
@@ -103,10 +106,10 @@ mod tests {
     #[test]
     fn parse_text_with_ansi() {
         let text = "This is a \
-            \x1b[32piece of text with escape codes like and \
-            \x1b[33\x1b[5 , it should parse without errors etc.\
-            \x1b[0this should \
-            \x1b[0be resetted again\
+            \x1b[32mpiece of text with escape codes like and \
+            \x1b[33m\x1b[5m , it should parse without errors etc.\
+            \x1b[0mthis should \
+            \x1b[0mbe resetted again\
             \x1b[38;2;22;99;199m and this is some blue'ish";
         let mut parser = Parser::default();
         assert_eq!(parser.parse_ansi_text(&mut text.chars()), Ok(()));
@@ -191,5 +194,11 @@ mod tests {
         let correct =
             "<article>This is default text<span style=\"font-weight:bold;\">and this text is bold</span></article>";
         assert_eq!(Formatter::format_chain(chain).to_string(), correct);
+    }
+
+    #[test]
+    fn convert_ansi_to_html() {
+        let ansi = "I'll start with some normal text, \x1b[32and then some green \x1b[1that's also bold\x1b[2and some that's faint\x1b[0";
+        let correct_html = r#""#;
     }
 }
