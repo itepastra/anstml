@@ -3,9 +3,11 @@ use std::{
     str::Bytes,
 };
 
+use itertools::Itertools;
+
 use html::{content::Article, inline_text::Italic};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Color {
     None,
     Byte(u8),
@@ -20,34 +22,34 @@ enum Color {
     Seven,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Intensity {
     Normal,
     Bold,
     Faint,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Blink {
     None,
     Fast,
     Slow,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Underline {
     None,
     Single,
     Double,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Spacing {
     Proportional,
     Monospace,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct AnsiState {
     background_color: Color,
     text_color: Color,
@@ -59,6 +61,12 @@ struct AnsiState {
     invert_colors: bool,
     strikethrough: bool,
     spacing: Spacing,
+}
+
+pub struct Parser {
+    ansi_chain: Vec<(AnsiState, String)>,
+    previous: AnsiState,
+    current: AnsiState,
 }
 
 impl Default for AnsiState {
@@ -74,6 +82,16 @@ impl Default for AnsiState {
             intensity: Intensity::Normal,
             blink: Blink::None,
             spacing: Spacing::Proportional,
+        }
+    }
+}
+
+impl Default for Parser {
+    fn default() -> Self {
+        Parser {
+            ansi_chain: Vec::new(),
+            previous: AnsiState::default(),
+            current: AnsiState::default(),
         }
     }
 }
@@ -130,8 +148,6 @@ fn parse_color_code(part: &mut impl Iterator<Item = char>) -> Result<Color, ()> 
                     total
                 })
                 .collect();
-            println!("cparts = {:?}", cparts);
-
             Ok(Color::Full(cparts[0]?, cparts[1]?, cparts[2]?))
         }
         _ => Err(()),
@@ -139,13 +155,16 @@ fn parse_color_code(part: &mut impl Iterator<Item = char>) -> Result<Color, ()> 
 }
 
 impl AnsiState {
-    fn parse_ansi_code(&mut self, characters: &mut impl Iterator<Item = char>) -> Result<(), ()> {
+    fn parse_ansi_code<T: Iterator<Item = char> + Clone>(
+        &mut self,
+        characters: &mut T,
+    ) -> Result<(), ()> {
         if characters.next() != Some('[') {
             return Err(());
         }
         match parse_number(
             &mut characters
-                .take_while(|&c| (c as u8) >= 0x30 && (c as u8) < 0x3a)
+                .take_while_ref(|&c| c.is_ascii_digit())
                 .map(|c| c as u8),
         )
         .0?
@@ -223,8 +242,50 @@ impl AnsiState {
     }
 }
 
+impl Parser {
+    pub fn parse_ansi_text<T: Iterator<Item = char> + Clone>(
+        &mut self,
+        characters: &mut T,
+    ) -> Result<(), ()> {
+        let mut chain = Vec::new();
+        loop {
+            // get the text till the next escape code
+            let part: String = characters.take_while(|&c| c != '\x1b').collect();
+            if part.len() > 0 {
+                chain.push((self.current.clone(), part))
+            }
+
+            // parse the escape code
+            match self.current.parse_ansi_code(characters) {
+                Ok(()) => {}
+                Err(()) => {
+                    if characters.next().is_some() {
+                        return Err(());
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        // find and fix duplicates
+        self.ansi_chain = chain
+            .into_iter()
+            .coalesce(|(left_state, left_string), (right_state, right_string)| {
+                if left_state == right_state {
+                    Ok((left_state, left_string + &right_string))
+                } else {
+                    Err(((left_state, left_string), (right_state, right_string)))
+                }
+            })
+            .collect();
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::iter::zip;
+
     use super::*;
     use rstest::rstest;
 
@@ -266,9 +327,77 @@ mod tests {
     }
 
     #[test]
+    fn parse_text_with_ansi() {
+        let text = "This is a \
+            \x1b[32piece of text with escape codes like and \
+            \x1b[33\x1b[5 , it should parse without errors etc.\
+            \x1b[0this should \
+            \x1b[0be resetted again\
+            \x1b[38;2;22;99;199m and this is some blue'ish";
+        let mut parser = Parser::default();
+        assert_eq!(parser.parse_ansi_text(&mut text.chars()), Ok(()));
+        let correct = vec![
+            (AnsiState::default(), "This is a ".to_string()),
+            (
+                AnsiState {
+                    background_color: Color::None,
+                    text_color: Color::Two,
+                    underline_color: Color::None,
+                    intensity: Intensity::Normal,
+                    italic: false,
+                    underline: Underline::None,
+                    blink: Blink::None,
+                    invert_colors: false,
+                    strikethrough: false,
+                    spacing: Spacing::Proportional,
+                },
+                "piece of text with escape codes like and ".to_string(),
+            ),
+            (
+                AnsiState {
+                    background_color: Color::None,
+                    text_color: Color::Three,
+                    underline_color: Color::None,
+                    intensity: Intensity::Normal,
+                    italic: false,
+                    underline: Underline::None,
+                    blink: Blink::Slow,
+                    invert_colors: false,
+                    strikethrough: false,
+                    spacing: Spacing::Proportional,
+                },
+                " , it should parse without errors etc.".to_string(),
+            ),
+            (
+                AnsiState::default(),
+                "this should be resetted again".to_string(),
+            ),
+            (
+                AnsiState {
+                    background_color: Color::None,
+                    text_color: Color::Full(22, 99, 199),
+                    underline_color: Color::None,
+                    intensity: Intensity::Normal,
+                    italic: false,
+                    underline: Underline::None,
+                    blink: Blink::None,
+                    invert_colors: false,
+                    strikethrough: false,
+                    spacing: Spacing::Proportional,
+                },
+                " and this is some blue'ish".to_string(),
+            ),
+        ];
+        assert_eq!(parser.ansi_chain.len(), correct.len());
+        for (correct, actual) in zip(parser.ansi_chain, correct) {
+            assert_eq!(actual, correct)
+        }
+    }
+
+    #[test]
     fn parse_ansi_codes() {
         let mut state = AnsiState::default();
-        assert_eq!(state.parse_ansi_code(&mut "[1m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[1".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -285,7 +414,7 @@ mod tests {
             },
             "We are testing the bold code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[2m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[2".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -302,7 +431,7 @@ mod tests {
             },
             "We are testing the faint code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[3m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[3".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -319,7 +448,7 @@ mod tests {
             },
             "We are testing the italic code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[4m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[4".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -336,7 +465,7 @@ mod tests {
             },
             "We are testing the underline code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[5m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[5".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -353,7 +482,7 @@ mod tests {
             },
             "We are testing the slow blink code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[6m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[6".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -370,7 +499,7 @@ mod tests {
             },
             "We are testing the fast blink code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[7m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[7".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -387,7 +516,7 @@ mod tests {
             },
             "We are testing the invert code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[9m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[9".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -404,7 +533,7 @@ mod tests {
             },
             "We are testing the strikethrough code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[21m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[21".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -421,7 +550,7 @@ mod tests {
             },
             "We are testing the double underline code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[22m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[22".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -438,7 +567,7 @@ mod tests {
             },
             "We are testing the reset intensity code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[23m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[23".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -455,7 +584,7 @@ mod tests {
             },
             "We are testing the reset italic code"
         );
-        assert_eq!(state.parse_ansi_code(&mut "[24m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[24".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState {
@@ -474,7 +603,7 @@ mod tests {
         );
         // TODO: test the rest of the codes
         println!("testing code 0");
-        assert_eq!(state.parse_ansi_code(&mut "[0m".chars()), Ok(()));
+        assert_eq!(state.parse_ansi_code(&mut "[0".chars()), Ok(()));
         assert_eq!(
             state,
             AnsiState::default(),
