@@ -67,11 +67,11 @@ impl Formatter {
         for (state, text) in chain {
             if state != AnsiState::default() {
                 let mut span = Span::builder();
-                span.text(text);
+                span.text(html_escape::encode_text(&text).into_owned());
                 span.style(state.to_style());
                 art.push(span.build());
             } else {
-                art.text(text);
+                art.text(html_escape::encode_text(&text).into_owned());
             }
         }
         art.build()
