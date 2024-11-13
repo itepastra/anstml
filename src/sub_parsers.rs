@@ -5,7 +5,7 @@ pub(crate) fn parse_number(part: &mut impl Iterator<Item = u8>) -> (Result<u8, A
         Ok(total) => {
             if !char.is_ascii_digit() {
                 (Err(AnsiError::InvalidFormat), length + 1)
-            } else if (char >= 0x30 && char < 0x3a) && (total < 25 || (total == 25 && char <= 0x35))
+            } else if (0x30..=0x39).contains(&char) && (total < 25 || (total == 25 && char <= 0x35))
             {
                 (Ok(total * 10 + (char - 0x30)), length + 1)
             } else {
@@ -86,8 +86,6 @@ mod tests {
     #[case(100, 200, 255)]
     #[case(200, 100, 50)]
     #[case(29, 99, 91)]
-    // weird notation
-    #[case(003, 022, 000)]
     fn full_color_from_extra_escape_part(#[case] r: u8, #[case] g: u8, #[case] b: u8) {
         let result = parse_color_code(&mut format!("2;{r};{g};{b}m").chars());
         assert_eq!(result, Ok(Color::Full(r, g, b)));

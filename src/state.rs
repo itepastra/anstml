@@ -136,6 +136,7 @@ impl AnsiState {
     }
 
     #[allow(unused)]
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         background_color: Color,
         text_color: Color,

@@ -29,7 +29,7 @@ fn main() -> Result<(), AnsTmlError> {
 
     let html = convert(&mut ansi_buffer.into_iter().map(|c| c as char))?;
 
-    write!(stdout(), "{}", html.to_string())?;
+    write!(stdout(), "{}", html)?;
 
     Ok(())
 }

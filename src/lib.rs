@@ -11,21 +11,13 @@ pub mod error;
 mod state;
 mod sub_parsers;
 
+#[derive(Default)]
 pub struct Parser {
     ansi_chain: AnsiChain,
     current: AnsiState,
 }
 
 pub type AnsiChain = Vec<(AnsiState, String)>;
-
-impl Default for Parser {
-    fn default() -> Self {
-        Parser {
-            ansi_chain: Vec::new(),
-            current: AnsiState::default(),
-        }
-    }
-}
 
 impl Parser {
     pub fn parse_ansi_text<T: Iterator<Item = char> + Clone>(
@@ -36,7 +28,7 @@ impl Parser {
         loop {
             // get the text till the next escape code
             let part: String = characters.take_while(|&c| c != '\x1b').collect();
-            if part.len() > 0 {
+            if !part.is_empty() {
                 chain.push((self.current.clone(), part))
             }
 
