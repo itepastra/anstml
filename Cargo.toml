@@ -13,7 +13,7 @@ name = "anstml"
 ansi_colours = "1.2.3"
 html = "0.6.3"
 html-escape = "0.2.13"
-itertools = "0.13.0"
+itertools = "0.14.0"
 
 [dev-dependencies]
 rstest = "*"
